@@ -13,7 +13,7 @@
         "appium-android-driver": "^5.2.2",
         "appium-ios-device": "^2.4.1",
         "appium-uiautomator2-driver": "^2.4.1",
-        "appium-xcuitest-driver": "mankey2021/appium-flutter-driver-ios14plus#master",
+        "appium-xcuitest-driver": "mankey2021/appium-xcuitest-driver-ios14plus",
         "asyncbox": "^2.3.1",
         "bluebird": "^3.1.1",
         "lodash": "^4.0.0",
