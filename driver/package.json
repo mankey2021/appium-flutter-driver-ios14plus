@@ -36,7 +36,8 @@
     "compile": "tsc",
     "clean": "rm -rf build",
     "lint": "tslint 'lib/**/*.ts'",
-    "clean-dependency": "rm -rf node_modules && rm -f package-lock.json && npm install"
+    "clean-dependency": "rm -rf node_modules && rm -f package-lock.json && npm install",
+    "postinstall": "unzip -o ./appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
   },
   "peerDependencies": {
     "appium": "^2.0.0-beta.40"
@@ -55,7 +56,7 @@
     "appium-android-driver": "^5.2.2",
     "appium-ios-device": "^2.4.1",
     "appium-uiautomator2-driver": "^2.4.1",
-    "appium-xcuitest-driver": "mankey2021/appium-xcuitest-driver-ios14plus",
+    "appium-xcuitest-driver": "^4.7.1",
     "asyncbox": "^2.3.1",
     "bluebird": "^3.1.1",
     "lodash": "^4.0.0",
