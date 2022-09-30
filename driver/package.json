@@ -6,12 +6,6 @@
     "flutter"
   ],
   "version": "1.7.0",
-  "author": "TruongSinh Tran-Nguyen <i@truongsinh.pro>",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/appium-userland/appium-flutter-driver.git"
-  },
   "main": "./build/driver/lib/driver.js",
   "appium": {
     "driverName": "flutter-ios14plus",
