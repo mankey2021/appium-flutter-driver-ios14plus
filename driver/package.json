@@ -1,5 +1,5 @@
 {
-  "name": "appium-flutter-driver-ios14plus",
+  "name": "@cloud-mobile/appium-flutter-driver-iosv14plus",
   "description": "Appium Flutter Driver iOS 14+",
   "keywords": [
     "appium",
@@ -16,7 +16,6 @@
     ],
     "mainClass": "FlutterDriver"
   },
-  "bin": {},
   "directories": {
     "lib": "lib"
   },
@@ -27,11 +26,11 @@
     "prepublishOnly": "cp ../README.md ../LICENSE ./",
     "prepare": "npm run clean && npm run compile",
     "test": "echo no test",
-    "compile": "tsc",
+    "compile": "tsc && mkdir ./build/driver/lib/est-code && cp ./lib/est-code/appium-xcuitest-driver.zip ./build/driver/lib/est-code/appium-xcuitest-driver.zip",
     "clean": "rm -rf build",
     "lint": "tslint 'lib/**/*.ts'",
     "clean-dependency": "rm -rf node_modules && rm -f package-lock.json && npm install",
-    "postinstall": "unzip -o ./appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
+    "postinstall": "unzip -o ./build/driver/lib/est-code/appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
   },
   "peerDependencies": {
     "appium": "^2.0.0-beta.40"
