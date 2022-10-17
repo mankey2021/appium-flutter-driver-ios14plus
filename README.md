@@ -21,10 +21,13 @@ Under the hood, Appium Flutter Driver use the [Dart VM Service Protocol](https:/
 In order to use `appium-flutter-driver`, we need to use `appium` version `1.16.0` or higher.
 The version 1.0.0 and higher requires Appium 2.0.
 
-With Appium 2:
+With Appium 2 (`appium@next`):
 ```
 appium driver install flutter
 ```
+
+> **Note**
+> Please use the latest flutter driver with appium 2 for Flutter v3
 
 
 With Appium 1:
@@ -44,9 +47,10 @@ This snippet, taken from [example dir](https://github.com/appium-userland/appium
 
 | Capability | Description | Example Values |
 | - | - | -|
-| retryBackoffTime | the time wait for socket connection retry for get flutter session (default 3000ms)|500|
-| maxRetryCount    | the count for socket connection retry for get flutter session (default 30)          | 20|
-| observatoryWsUri | the URL to attach to the Dart VM. In general, the flutter driver finds the WebSocket URL from device log such as logcat. You can skip the find the URL steps by specifying this capability. Then, this driver try to establish a session by following the given WebSocket URL. | 'ws://127.0.0.1:60992/aaaaaaaaaaa=/ws' |
+| appium:retryBackoffTime | The time wait for socket connection retry for get flutter session (default 3000ms)|500|
+| appium:maxRetryCount    | The count for socket connection retry for get flutter session (default 30)          | 20|
+| appium:observatoryWsUri | The URL to attach to the Dart VM. The appium flutter driver finds the WebSocket URL from the device log by default. You can skip the finding the URL process by specifying this capability. Then, this driver attempt to establish a WebSocket connection against the given WebSocket URL. Note that this capability espects the URL is ready for access by outside an appium session. This flutter driver does not do port-forwarding with this capability. You may need to coordinate the port-forwarding as well. | 'ws://127.0.0.1:60992/aaaaaaaaaaa=/ws' |
+| appium:skipPortForward | Whether skip port forwarding from the flutter driver local to the device under test with `observatoryWsUri` capability. It helps you to manage the application under test, the observatory URL and the port forwarding configuration. The default is `true`. | true, false |
 
 ### Context
 
@@ -182,7 +186,7 @@ Please replace them properly with your client.
 | [tap](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/tap.html) | :ok: | [`driver.elementClick(buttonFinder)`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L46) | Widget |
 | [tap](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/tap.html) | :ok: | [`driver.touchAction({action: 'tap', element: {elementId: buttonFinder}})`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L47) | Widget |
 | [traceAction](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/traceAction.html) | :x: |  | Session |
-| [waitFor](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitFor.html) | :ok: | `driver.execute('flutter:waitFor', buttonFinder, {durationMilliseconds: 100})` | Widget |
+| [waitFor](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitFor.html) | :ok: | `driver.execute('flutter:waitFor', buttonFinder, 100)` | Widget |
 | [waitForAbsent](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitForAbsent.html) | :ok: | `driver.execute('flutter:waitForAbsent', buttonFinder)` | Widget |
 | [waitForTappable](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitForTappable.html) | :ok: | `driver.execute('flutter:waitForTappable', buttonFinder)` | Widget |
 | [waitUntilNoTransientCallbacks](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitUntilNoTransientCallbacks.html) | :x: |  | Widget |
@@ -247,3 +251,7 @@ $ git push origin v0.0.32
 $ git push origin main
 $ npm publish
 ```
+
+### Java implementation
+````
+https://github.com/ashwithpoojary98/javaflutterfinder
