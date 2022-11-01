@@ -18,8 +18,9 @@ Under the hood, Appium Flutter Driver use the [Dart VM Service Protocol](https:/
 
 ## Installation
 
-In order to use `appium-flutter-driver`, we need to use `appium` version `1.16.0` or higher.
-The version 1.0.0 and higher requires Appium 2.0.
+- In order to use `appium-flutter-driver`, we need to use `appium` version `1.16.0` or higher.
+- The Appium Flutter Driver version 1.0 and higher require Appium 2.0.0.
+    - `1.8.0`+ require over Appium `2.0.0-beta.46`
 
 With Appium 2 (`appium@next`):
 ```
@@ -177,8 +178,9 @@ Please replace them properly with your client.
 | [screenshot](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/screenshot.html) | :ok: | `driver.takeScreenshot()` | Session |
 | [screenshot](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/screenshot.html) | :ok: | `driver.saveScreenshot('a.png')` | Session |
 | [scroll](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scroll.html) | :ok: | `driver.execute('flutter:scroll', find.byType('ListView'), {dx: 50, dy: -100, durationMilliseconds: 200, frequency: 30})` | Widget |
-| [scrollIntoView](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollIntoView.html) | :ok: | `driver.execute('flutter:scrollIntoView', find.byType('TextField'), {alignment: 0.1})` | Widget |
+| [scrollIntoView](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollIntoView.html) | :ok: | `driver.execute('flutter:scrollIntoView', find.byType('TextField'), {alignment: 0.1})` <br/> `driver.execute('flutter:scrollIntoView', find.byType('TextField'), {alignment: 0.1, timeout: 30000})` | Widget |
 | [scrollUntilVisible](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilVisible', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});` | Widget |
+| [scrollUntilTapable](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilTapable', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});` | Widget |
 | [setSemantics](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/setSemantics.html) | :x: |  | Session |
 | [setTextEntryEmulation](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/setTextEntryEmulation.html) | :ok: | `driver.execute('flutter:setTextEntryEmulation', false)` | Session |
 | [startTracing](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/startTracing.html) | :x: |  | Session |
@@ -203,6 +205,8 @@ Please replace them properly with your client.
 - Flutter context does not support page source
     - Please use `getRenderTree` command instead
 - You can send appium-xcuitest-driver/appium-uiautomator2-driver commands in `NATIVE_APP` context
+- `scrollUntilVisible` command : An expectation for checking that an element, known to be present on the widget tree, is visible. Using waitFor to wait element
+- `scrollUntilTapable` command : An expectation for checking an element is visible and enabled such that you can click it. Using waitTapable to wait element
 
 ## Change the flutter engine attache to
 
@@ -239,11 +243,7 @@ driver.execute_script 'flutter:setIsolateId', info['isolates'][0]['id']
 
 ```
 $ cd driver
-$ rm npm-shrinkwrap.json
-$ npm run clean-dependency
-$ npm prune --production
-$ rm -rf node_modules/appium
-$ npm shrinkwrap  # to specify the dependencies in the npm module
+$ sh release.sh
 $ npm version <major|minor|patch>
 $ git commit -am 'chore: bump version'
 $ git tag <version number> # e.g. git tag v0.0.32

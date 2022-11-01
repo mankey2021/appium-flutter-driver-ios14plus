@@ -1,10 +1,23 @@
 # Changelog
 
-## 1.7.1
+## 1.9.0
+- **Breaking change**
+    - Revert [#306](https://github.com/appium-userland/appium-flutter-driver/pull/306) (added in v1.5.0). `scrollUntilVisible` uses `waitFor` as same as before v1.5.0.
+        - Please use `scrollUntilTapable` instead since this version
+ - Added `scrollUntilTapable` command to scroll with `waitForTappable` [#360](https://github.com/appium-userland/appium-flutter-driver/pull/360)
+
+## 1.8.0
+
+Appium `2.0.0-beta.46` and higher is needed as dependencies update in dependent Appium UIA2/XCUITest drivers
+
+- Added `timeout` argument for scrollIntoView [#358](https://github.com/appium-userland/appium-flutter-driver/pull/358)
+- Added `skipPortForward` capability [#343](https://github.com/appium-userland/appium-flutter-driver/pull/343)
+
+## 1.7.2 (1.7.1)
 - Fixed `* 1000` in `scroll` [#330](https://github.com/appium-userland/appium-flutter-driver/pull/330)
 
 ## 1.7.0
-- [breaking change]
+- **Breaking change**
     - Do not calculate `* 1000` internally for milliseconds arguments to set them properly as same as README/examples. [#319](https://github.com/appium-userland/appium-flutter-driver/issues/319)
 
 ## 1.6.0

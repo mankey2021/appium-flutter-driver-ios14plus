@@ -5,7 +5,7 @@
     "appium",
     "flutter"
   ],
-  "version": "1.7.2",
+  "version": "1.9.0",
   "main": "./build/driver/lib/driver.js",
   "appium": {
     "driverName": "flutter-ios14plus",
