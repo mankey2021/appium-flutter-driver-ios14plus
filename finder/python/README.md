@@ -41,6 +41,8 @@ twine upload dist/Appium-Flutter-Finder-X.X.tar.gz
 ```
 
 # Changelog
+- 0.5.0
+    - Allow Appium-Python-Client to be v3
 - 0.4.0
     - Bump base Appium-Python-Client to v2
 - 0.3.1
