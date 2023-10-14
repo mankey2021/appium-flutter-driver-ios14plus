@@ -1,123 +1,186 @@
 import { URL } from 'url';
-
-import { deserialize } from '../../../finder/nodejs/lib/deserializer';
+import _ from 'lodash';
 import { FlutterDriver } from '../driver';
 import { log } from '../logger';
 import { IsolateSocket } from './isolate_socket';
+import { decode } from './base64url';
+import B from 'bluebird';
+
+const truncateLength = 500;
+// https://github.com/flutter/flutter/blob/f90b019c68edf4541a4c8273865a2b40c2c01eb3/dev/devicelab/lib/framework/runner.dart#L183
+//  e.g. 'Observatory listening on http://127.0.0.1:52817/_w_SwaKs9-g=/'
+// https://github.com/flutter/flutter/blob/52ae102f182afaa0524d0d01d21b2d86d15a11dc/packages/flutter_tools/lib/src/resident_runner.dart#L1386-L1389
+//  e.g. 'An Observatory debugger and profiler on ${device.device.name} is available at: http://127.0.0.1:52817/_w_SwaKs9-g=/'
+const OBSERVATORY_URL_PATTERN = new RegExp(
+  `(Observatory listening on |` +
+  `An Observatory debugger and profiler on\\s.+\\sis available at: |` +
+  `The Dart VM service is listening on )` +
+  `((http|//)[a-zA-Z0-9:/=_\\-.\\[\\]]+)`,
+);
+type AnyDriver = import('appium-xcuitest-driver').XCUITestDriver | import('appium-uiautomator2-driver').AndroidUiautomator2Driver;
 
 // SOCKETS
 export const connectSocket = async (
-  dartObservatoryURL: string,
-  RETRY_BACKOFF: any = 3000,
-  MAX_RETRY_COUNT: any = 30) => {
+  getObservatoryWsUri: (driver: AnyDriver, caps: any) => Promise<string>,
+  driver: AnyDriver,
+  caps: Record<string, any>
+): Promise<IsolateSocket> => {
+
+  const retryBackoff = caps.retryBackoffTime || 3000;
+  const maxRetryCount = caps.maxRetryCount || 10;
+
+  const isolateId = caps.isolateId;
+
   let retryCount = 0;
-  let connectedSocket: IsolateSocket | null = null;
-  while (retryCount < MAX_RETRY_COUNT && !connectedSocket) {
-    if (retryCount > 0) {
-      log.info(
-        `Waiting ` + RETRY_BACKOFF / 1000 + ` seconds before trying...`,
-      );
-      await new Promise((r) => setTimeout(r, RETRY_BACKOFF));
+  let urlFetchError: Error|undefined;
+  let dartObservatoryURL: string|undefined;
+  log.debug(
+    `Establishing a connection to the Dart Observatory. ` +
+    `Will retry ${maxRetryCount} times with ${retryBackoff}ms delay between retries. ` +
+    `These values could be customized by changing 'maxRetryCount' and 'retryBackoffTime' capabilities.`
+  );
+  while (retryCount < maxRetryCount) {
+    if (retryCount > 0 && retryBackoff > 0) {
+      log.info(`Waiting ${retryBackoff}ms before retrying`);
+      await B.delay(retryBackoff);
     }
-    log.info(`Attempt #` + (retryCount + 1));
+    log.info(`Attempt #${(retryCount + 1)} of ${maxRetryCount}`);
 
-    const connectedPromise = new Promise<IsolateSocket | null>((resolve) => {
-      log.info(
-        `Connecting to Dart Observatory: ${dartObservatoryURL}`,
-      );
+    // Every attempt gets the latest observatory url
+    try {
+      dartObservatoryURL = await getObservatoryWsUri(driver, caps);
+      urlFetchError = undefined;
+    } catch (e) {
+      urlFetchError = e;
+      log.debug(e.message);
+    }
 
-      const socket = new IsolateSocket(dartObservatoryURL);
+    if (!urlFetchError) {
+      const connectedPromise = new Promise<IsolateSocket | null>((resolve) => {
+        const socket = new IsolateSocket(dartObservatoryURL);
 
-      const removeListenerAndResolve = (r: IsolateSocket | null) => {
-        socket.removeListener(`error`, onErrorListener);
-        socket.removeListener(`timeout`, onTimeoutListener);
-        socket.removeListener(`open`, onOpenListener);
-        resolve(r);
-      };
+        const removeListenerAndResolve = (r: IsolateSocket | null) => {
+          socket.removeListener(`error`, onErrorListener);
+          socket.removeListener(`timeout`, onTimeoutListener);
+          socket.removeListener(`open`, onOpenListener);
+          resolve(r);
+        };
 
-      // Add an 'error' event handler for the client socket
-      const onErrorListener = (ex) => {
-        log.error(ex);
-        log.error(
-          `Check Dart Observatory URI ${dartObservatoryURL}`,
-        );
-        removeListenerAndResolve(null);
-      };
-      socket.on(`error`, onErrorListener);
-      // Add a 'close' event handler for the client socket
-      socket.on(`close`, () => {
-        log.info(`Connection to ${dartObservatoryURL} closed`);
-        // @todo do we need to set this.socket = null?
-      });
-      // Add a 'timeout' event handler for the client socket
-      const onTimeoutListener = () => {
-        log.error(`Connection to ${dartObservatoryURL} timed out`);
-        removeListenerAndResolve(null);
-      };
-      socket.on(`timeout`, onTimeoutListener);
-      const onOpenListener = async () => {
-        // tslint:disable-next-line:ban-types
-        const originalSocketCall: Function = socket.call;
-        socket.call = async (...args: any) => {
-          try {
-            // `await` is needed so that rejected promise will be thrown and caught
-            return await originalSocketCall.apply(socket, args);
-          } catch (e) {
-            log.errorAndThrow(JSON.stringify(e));
+        // Add an 'error' event handler for the client socket
+        const onErrorListener = (ex: Error) => {
+          log.error(JSON.stringify(ex));
+          removeListenerAndResolve(null);
+        };
+        socket.on(`error`, onErrorListener);
+        // Add a 'close' event handler for the client socket
+        socket.on(`close`, () => {
+          log.info(`Connection to ${dartObservatoryURL} closed`);
+          // @todo do we need to set this.socket = null?
+        });
+        // Add a 'timeout' event handler for the client socket
+        const onTimeoutListener = () => {
+          log.error(`Connection to ${dartObservatoryURL} timed out`);
+          removeListenerAndResolve(null);
+        };
+        socket.on(`timeout`, onTimeoutListener);
+        const onOpenListener = async () => {
+          const originalSocketCall = socket.call;
+          socket.call = async (...args: any) => {
+            try {
+              // `await` is needed so that rejected promise will be thrown and caught
+              return await originalSocketCall.apply(socket, args);
+            } catch (e) {
+              log.errorAndThrow(JSON.stringify(e));
+            }
+          };
+          log.info(`Connecting to Dart Observatory: ${dartObservatoryURL}`);
+
+          if (isolateId) {
+            log.info(`Listing the given isolate id: ${isolateId}`);
+            socket.isolateId = isolateId;
+          } else {
+            const vm = await socket.call(`getVM`) as {
+              isolates: [{
+                name: string,
+                id: number,
+              }],
+            };
+            log.info(`Listing all isolates: ${JSON.stringify(vm.isolates)}`);
+            // To accept 'main.dart:main()' and 'main'
+            const mainIsolateData = vm.isolates.find((e) => e.name.includes(`main`));
+            if (!mainIsolateData) {
+              log.error(`Cannot get Dart main isolate info`);
+              removeListenerAndResolve(null);
+              socket.close();
+              return;
+            }
+            // e.g. 'isolates/2978358234363215', '2978358234363215'
+            socket.isolateId = mainIsolateData.id;
           }
-        };
-        log.info(`Connected to ${dartObservatoryURL}`);
-        const vm = await socket.call(`getVM`) as {
-          isolates: [{
-            name: string,
-            id: number,
-          }],
-        };
-        log.info(`Listing all isolates: ${JSON.stringify(vm.isolates)}`);
-        const mainIsolateData = vm.isolates.find((e) => e.name === `main`);
-        if (!mainIsolateData) {
-          log.error(`Cannot get Dart main isolate info`);
-          removeListenerAndResolve(null);
-          return;
-        }
-        socket.isolateId = mainIsolateData.id;
-        // @todo check extension and do health check
-        const isolate = await socket.call(`getIsolate`, {
-          isolateId: `${socket.isolateId}`,
-        }) as {
-          extensionRPCs: [string] | null,
-        } | null;
-        if (!isolate) {
-          log.error(`Cannot get main Dart Isolate`);
-          removeListenerAndResolve(null);
-          return;
-        }
-        if (!Array.isArray(isolate.extensionRPCs)) {
-          log.errorAndThrow(`Cannot get Dart extensionRPCs from isolate ${JSON.stringify(isolate)}`);
-          removeListenerAndResolve(null);
-          return;
-        }
-        if (isolate.extensionRPCs.indexOf(`ext.flutter.driver`) < 0) {
-          const msg = `"ext.flutter.driver" is not found in "extensionRPCs" ${JSON.stringify(isolate.extensionRPCs)}`;
-          log.error(msg);
-          removeListenerAndResolve(null);
-          return;
-        }
-        removeListenerAndResolve(socket);
-      };
-      socket.on(`open`, onOpenListener);
-    });
-    retryCount++;
-    connectedSocket = await connectedPromise;
 
-    if (!connectedSocket && retryCount === MAX_RETRY_COUNT - 1) {
-      log.errorAndThrow(
-        `Failed to connect ` + MAX_RETRY_COUNT + ` times. Aborting.`,
-      );
+          // @todo check extension and do health check
+          const isolate = await socket.call(`getIsolate`, {
+            isolateId: `${socket.isolateId}`,
+          }) as {
+            extensionRPCs: [string] | null,
+          } | null;
+          if (!isolate) {
+            log.error(`Cannot get main Dart Isolate`);
+            removeListenerAndResolve(null);
+            return;
+          }
+          if (!Array.isArray(isolate.extensionRPCs)) {
+            log.error(`Cannot get Dart extensionRPCs from isolate ${JSON.stringify(isolate)}`);
+            removeListenerAndResolve(null);
+            return;
+          }
+          if (isolate.extensionRPCs.indexOf(`ext.flutter.driver`) < 0) {
+            log.error(
+              `"ext.flutter.driver" is not found in "extensionRPCs" ${JSON.stringify(isolate.extensionRPCs)}`
+            );
+            removeListenerAndResolve(null);
+            return;
+          }
+          removeListenerAndResolve(socket);
+        };
+        socket.on(`open`, onOpenListener);
+      });
+      const connectedSocket = await connectedPromise;
+      if (connectedSocket) {
+        return connectedSocket;
+      }
     }
+    retryCount++;
   }
-  retryCount = 0;
-  return connectedSocket;
+  throw new Error(
+    urlFetchError
+      ? (`Cannot determine the Dart Observatory URL after ${maxRetryCount} retries. ` +
+        `Original error: ${urlFetchError.message}`)
+      : (`Cannot connect to the Dart Observatory URL ${dartObservatoryURL} after ` +
+        `${maxRetryCount} retries. Check the server log for more details`)
+  );
+};
+
+export const executeGetIsolateCommand = async function(
+  this: FlutterDriver,
+  isolateId: string|number
+) {
+  log.debug(`>>> getIsolate`);
+  const isolate = await this.socket!.call(`getIsolate`, { isolateId: `${isolateId}` });
+  log.debug(`<<< ${_.truncate(JSON.stringify(isolate), {'length': truncateLength})}`);
+  return isolate;
+};
+
+export const executeGetVMCommand = async function(this: FlutterDriver) {
+  log.debug(`>>> getVM`);
+  const vm = await this.socket!.call(`getVM`) as {
+    isolates: [{
+      name: string,
+      id: number,
+    }],
+  };
+  log.debug(`<<< ${_.truncate(JSON.stringify(vm), {'length': truncateLength})}`);
+  return vm;
 };
 
 export const executeElementCommand = async function(
@@ -125,43 +188,34 @@ export const executeElementCommand = async function(
   command: string,
   elementBase64?: string,
   extraArgs = {}) {
-  const elementObject = elementBase64 ? deserialize(elementBase64) : {};
+  const elementObject = elementBase64 ? JSON.parse(decode(elementBase64)) : {};
   const serializedCommand = { command, ...elementObject, ...extraArgs };
   log.debug(`>>> ${JSON.stringify(serializedCommand)}`);
   const data = await this.socket!.executeSocketCommand(serializedCommand);
   log.debug(`<<< ${JSON.stringify(data)} | previous command ${command}`);
   if (data.isError) {
     throw new Error(
-      `Cannot execute command ${command}, server reponse ${JSON.stringify(data, null, 2)}`,
+      `Cannot execute command ${command}, server response ${JSON.stringify(data, null, 2)}`,
     );
   }
   return data.response;
 };
 
-export const processLogToGetobservatory = (adbLogs: [{ message: string }]) => {
-  // https://github.com/flutter/flutter/blob/f90b019c68edf4541a4c8273865a2b40c2c01eb3/dev/devicelab/lib/framework/runner.dart#L183
-  //  e.g. 'Observatory listening on http://127.0.0.1:52817/_w_SwaKs9-g=/'
-  // https://github.com/flutter/flutter/blob/52ae102f182afaa0524d0d01d21b2d86d15a11dc/packages/flutter_tools/lib/src/resident_runner.dart#L1386-L1389
-  //  e.g. 'An Observatory debugger and profiler on ${device.device.name} is available at: http://127.0.0.1:52817/_w_SwaKs9-g=/'
-  const observatoryUriRegEx = new RegExp(
-    `(Observatory listening on |An Observatory debugger and profiler on\\s.+\\sis available at: )((http|\/\/)[a-zA-Z0-9:/=_\\-\.\\[\\]]+)`,
-  );
-  // @ts-ignore
-  const observatoryMatch = adbLogs
-    .map((e) => e.message)
-    .reverse()
-    .find((e) => e.match(observatoryUriRegEx))
-    .match(observatoryUriRegEx);
-
-  if (!observatoryMatch) {
-    throw new Error(`can't find Observatory`);
+export const processLogToGetobservatory = (deviceLogs: [{ message: string }]): URL => {
+  let dartObservatoryURL: URL|undefined;
+  for (const line of deviceLogs.map((e) => e.message).reverse()) {
+    const match = line.match(OBSERVATORY_URL_PATTERN);
+    if (match) {
+      dartObservatoryURL = new URL(match[2]);
+      break;
+    }
   }
-
-  const dartObservatoryURI = observatoryMatch[2];
-  const dartObservatoryURL = new URL(dartObservatoryURI);
-
+  if (!dartObservatoryURL) {
+    throw new Error(`No observatory URL matching to '${OBSERVATORY_URL_PATTERN}' was found in the device log. ` +
+      `Please make sure the application under test is configured properly according to ` +
+      `https://github.com/appium-userland/appium-flutter-driver#usage and that it does not crash on startup.`);
+  }
   dartObservatoryURL.protocol = `ws`;
   dartObservatoryURL.pathname += `ws`;
-
   return dartObservatoryURL;
 };

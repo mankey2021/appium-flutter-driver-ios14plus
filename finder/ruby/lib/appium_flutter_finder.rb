@@ -9,6 +9,8 @@ module Appium
 
     # Handles flutter elements as Appium Elements
     class Element < ::Selenium::WebDriver::Element
+      attr_reader :id
+
       def initialize(driver, finder:)
         @bridge = driver.bridge
         @id = finder
@@ -88,7 +90,7 @@ module Appium
       end
 
       def by_ancestor_or_descendant(type:, serialized_finder:, matching:, match_root: false, first_match_only: false)
-        param = { finderType: type, matchRoot: match_root, firstMatchOnly: first_match_only}
+        param = { finderType: type, matchRoot: match_root.to_s, firstMatchOnly: first_match_only.to_s}
 
         finder = begin
           JSON.parse(Base64.decode64(serialized_finder))

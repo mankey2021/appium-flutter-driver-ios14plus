@@ -3,16 +3,12 @@
 package pro.truongsinh.appium_flutter.finder
 
 fun descendant(of: FlutterElement, matching: FlutterElement, matchRoot: Boolean = false, firstMatchOnly: Boolean = false): FlutterElement {
-  val m = mutableMapOf(
+  val m = mutableMapOf<String, Any>(
     "finderType" to "Descendant",
-    "matchRoot" to matchRoot,
-    "firstMatchOnly" to firstMatchOnly
+    "matchRoot" to matchRoot.toString(),
+    "firstMatchOnly" to firstMatchOnly.toString()
   )
-  of.getRawMap().forEach {
-    m.put("of_${it.key}", it.value!!)
-  }
-  matching.getRawMap().forEach {
-    m.put("matching_${it.key}", it.value!!)
-  }
+  m["of"] = of.getRawMap()
+  m["matching"] = matching.getRawMap()
   return FlutterElement(m)
 }
