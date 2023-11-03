@@ -5,8 +5,24 @@
     "appium",
     "flutter"
   ],
+<<<<<<< HEAD
   "version": "1.9.0",
   "main": "./build/driver/lib/driver.js",
+=======
+  "version": "2.2.0",
+  "author": "TruongSinh Tran-Nguyen <i@truongsinh.pro>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/appium-userland/appium-flutter-driver.git"
+  },
+  "engines": {
+    "node": ">=14",
+    "npm": ">=8"
+  },
+  "main": "./build/lib/driver.js",
+  "types": "./build/lib/index.d.ts",
+>>>>>>> upstream/main
   "appium": {
     "driverName": "flutter-ios14plus",
     "automationName": "Flutter-iOS14Plus",
@@ -20,36 +36,58 @@
     "lib": "lib"
   },
   "files": [
-    "build"
+    "lib",
+    "build",
+    "!build/tsconfig.tsbuildinfo"
   ],
   "scripts": {
+    "build": "tsc -b",
+    "dev": "npm run build -- --watch",
+    "clean": "npm run build -- --clean",
+    "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
     "prepublishOnly": "cp ../README.md ../LICENSE ./",
-    "prepare": "npm run clean && npm run compile",
+    "prepare": "npm run clean && npm run build",
     "test": "echo no test",
+<<<<<<< HEAD
     "compile": "tsc && mkdir ./build/driver/lib/est-code && cp ./lib/est-code/appium-xcuitest-driver.zip ./build/driver/lib/est-code/appium-xcuitest-driver.zip",
     "clean": "rm -rf build",
     "lint": "tslint 'lib/**/*.ts'",
     "clean-dependency": "rm -rf node_modules && rm -f package-lock.json && npm install",
     "postinstall": "unzip -o ./build/driver/lib/est-code/appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
+=======
+    "clean-dependency": "rm -rf node_modules && rm -f package-lock.json"
+>>>>>>> upstream/main
   },
   "peerDependencies": {
-    "appium": "^2.0.0-beta.40"
+    "appium": "^2.0.0"
   },
   "devDependencies": {
-    "@appium/schema": "^0.0.8",
-    "@appium/types": "^0.5.0",
-    "@wdio/types": "^7.20.0",
+    "@appium/eslint-config-appium": "^8.0.4",
+    "@appium/eslint-config-appium-ts": "^0.3.1",
+    "@appium/schema": "^0.4.1",
+    "@appium/tsconfig": "^0.3.0",
+    "@appium/types": "^0.14.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "eslint": "^8.46.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-typescript": "^3.5.5",
+    "eslint-plugin-import": "^2.28.0",
+    "eslint-plugin-mocha": "^10.1.0",
+    "eslint-plugin-promise": "^6.1.1",
     "json-schema": "^0.4.0",
-    "tslint": "^6.1.3",
-    "type-fest": "^3.0.0",
-    "typescript": "^4.5.3"
+    "semantic-release": "^22.0.5",
+    "type-fest": "^4.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
   },
   "dependencies": {
-    "appium-adb": "^9.9.0",
-    "appium-android-driver": "^5.2.2",
+    "appium-adb": "^11.0.1",
+    "appium-android-driver": "^7.0.2",
     "appium-ios-device": "^2.4.1",
-    "appium-uiautomator2-driver": "^2.4.1",
-    "appium-xcuitest-driver": "^4.7.1",
+    "appium-uiautomator2-driver": "^2.29.4",
+    "appium-xcuitest-driver": "5.7.0",
     "asyncbox": "^2.3.1",
     "bluebird": "^3.1.1",
     "lodash": "^4.0.0",

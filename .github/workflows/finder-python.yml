@@ -1,6 +1,7 @@
 name: Python
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'finder/python/**'
@@ -17,10 +18,10 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9']
+        python-version: ['3.8', '3.9', '3.10', '3.11']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -30,10 +31,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint pytest Appium-Python-Client
     - name: Analyzing the code with pylint
-      run: |
-        cd finder/python
-        pylint tests/ appium_flutter_finder/
+      run: pylint tests/ appium_flutter_finder/
+      working-directory: finder/python
     - name: Run tests
-      run: |
-        cd finder/python
-        pytest tests/**
+      run: pytest tests/**
+      working-directory: finder/python

@@ -3,65 +3,109 @@
 [![NPM version](https://img.shields.io/npm/v/appium-flutter-driver.svg)](https://npmjs.org/package/appium-flutter-driver)
 [![Downloads](https://img.shields.io/npm/dm/appium-flutter-driver.svg)](https://npmjs.org/package/appium-flutter-driver)
 
-Appium Flutter Driver is a test automation tool for [Flutter](https://flutter.dev) apps on multiple platforms/OSes. Appium Flutter Driver is part of the [Appium](https://github.com/appium/appium) mobile test automation tool maintained by community. Feel free to create PRs to fix issues/improve this driver.
-
-This package is still experiment, breaking changes and breaking codes are to be expected! All contributions, including non-code, are welcome! See [TODO](#todo) list below.
+Appium Flutter Driver is a test automation tool for [Flutter](https://flutter.dev) apps on multiple platforms/OSes. Appium Flutter Driver is part of the [Appium](https://github.com/appium/appium) mobile test automation tool maintained by the community. Feel free to create PRs to fix issues/improve this driver.
 
 ## Flutter Driver vs Appium Flutter Driver
 Even though Flutter comes with superb integration test support, [Flutter Driver](https://flutter.dev/docs/cookbook/testing/integration/introduction), it does not fit some specific use cases, such as
-- writing test in other languages than Dart
-- running integration test for Flutter app with embedded webview or native view, or existing native app with embedded Flutter view
-- running test on multiple devices simultaneously
-- running integration test on device farms, such as Sauce Labs, HeadSpin, AWS, Firebase
+- Writing tests in other languages than Dart
+- Running integration test for Flutter app with embedded webview or native view, or existing native app with embedded Flutter view
+- Running tests on multiple devices simultaneously
+- Running integration tests on device farms that offer Appium support (Please contact the availability for each vendor)
 
-Under the hood, Appium Flutter Driver use the [Dart VM Service Protocol](https://github.com/dart-lang/sdk/blob/master/runtime/vm/service/service.md) with extension `ext.flutter.driver`, similar to Flutter Driver, to control the Flutter app-under-test (AUT).
+Under the hood, Appium Flutter Driver uses the [Dart VM Service Protocol](https://github.com/dart-lang/sdk/blob/master/runtime/vm/service/service.md) with extension `ext.flutter.driver`, similar to Flutter Driver, to control the Flutter app-under-test (AUT).
+
+## Appium Flutter Driver or Appium UiAutomator2/XCUITest driver
+- Appium Flutter driver manages the application under test and the device under test via Appium UiAutomator2/XCUITest drivers
+    -  `FLUTTER` context sends commands to the Dart VM directly over the observatory URL
+        - Newer Flutter versions expose its accessibility labels to the system's accessibility features. It means you can find some Flutter elements and can interact with them over `accessibility_id` etc in the vanilla Appium UiAutomator2/XCUITest drivers, although some elements require over the Dart VM
+    - `NATIVE_APP` context is the same as the regular Appium UiAutomator2/XCUITest driver
+        - Please refer to each client's documentation about available commands.
+        - Each driver's documentation also may help.
+          - https://github.com/appium/appium-uiautomator2-driver
+          - https://appium.github.io/appium-xcuitest-driver/latest
+    - `WEBVIEW` context manages the WebView contents over Appium UiAutomator2/XCUITest driver
+- Appium UiAutomator2/XCUITest drivers must be sufficient to achieve automation if the application under test had `semanticLabel` properly. Then, the accessibility mechanism in each OS can expose elements for Appium through OS's accessibility features
+    - For example, [Key](https://api.flutter.dev/flutter/foundation/Key-class.html) does not work in the Appium UiAutomator2/XCUITest drivers, but can work in the Appium Flutter Driver
 
 ## Installation
 
-- In order to use `appium-flutter-driver`, we need to use `appium` version `1.16.0` or higher.
-- The Appium Flutter Driver version 1.0 and higher require Appium 2.0.0.
-    - `1.8.0`+ require over Appium `2.0.0-beta.46`
+Appium Flutter Driver version 1.0 and higher require Appium 2.0.
 
-With Appium 2 (`appium@next`):
 ```
-appium driver install flutter
+appium driver install --source=npm appium-flutter-driver
 ```
+
+As a local:
+
+```
+appium driver install --source local /path/to/appium-flutter-driver/driver
+```
+
+## Usage and requirement
+If you are unfamiliar with running Appium tests, start with [Quickstart Intro](https://appium.io/docs/en/latest/quickstart/) first.
+
+Your Flutter application must be compiled in `debug` or `profile` mode. The dependency must have **[`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html)** package like the below `pubspec.yaml` example with [`enableFlutterDriverExtension`](https://api.flutter.dev/flutter/flutter_driver_extension/flutter_driver_extension-library.html) configuration in the `main.dart`.
+
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  flutter_driver:
+    sdk: flutter
+```
+
+This snippet, taken from [example directory](example), is a script written as an appium client with `webdriverio`, and assumes you have `appium` server (with `appium-flutter-driver` installed) running on the same host and default port (`4723`). For more info, see example's [README.md](https://github.com/truongsinh/appium-flutter-driver/tree/main/example/README.md)
 
 > **Note**
-> Please use the latest flutter driver with appium 2 for Flutter v3
+>
+> This means this driver depends on [`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html).
 
+Each client needs [each finder](finder) module to handle [Finders](#Finders). Appium Flutter Driver communicates with the Dart VM directory in the `FLUTTER` context.
 
-With Appium 1:
+### Note
+- Flutter context does not support page source
+    - Please use `getRenderTree` command instead
+- You can send appium-xcuitest-driver/appium-uiautomator2-driver commands in `NATIVE_APP` context
+- `scrollUntilVisible` command : An expectation for checking that an element, known to be present on the widget tree, is visible. Using waitFor to wait element
+- `scrollUntilTapable` command : An expectation for checking an element is visible and enabled such that you can click it. Using waitTapable to wait element
+- `driver.activateApp(appId)` starts the given app and attaches to the observatory URL in the `FLUTTER` context. The method may raise an exception if no observaotry URL was found. The typical case is the `appId` is already running. Then, the driver will fail to find the observatory URL.
+- `getClipboard` and `setClipboard` depend on each `NATIVE_APP` context behavior
+- Launch via `flutter:launchApp` or 3rd party tool (via instrument service) and attach to the Dart VM for an iOS real device (profile build)
+    1. Do not set `app` nor `bundleId` to start a session without launching apps
+    2. Start the app process via 3rd party tools such as [go-ios](https://github.com/danielpaulus/go-ios) to start the app process with debug mode in the middle of the new session process in 1) the above.
+          - Then, the appium flutter session establish the WebSocket and proceed the session
+- keyboard interaction may not work in Android because of https://github.com/flutter/flutter/issues/15415 that is caused by [`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html)
 
-```
-npm i -g appium-flutter-driver
-```
+## Capabilities
 
-## Usage
-If you are unfamiliar with running Appium tests, start with [Appium Getting Starting](http://appium.io/docs/en/about-appium/getting-started/) first.
-
-Your Flutter app-under-test (AUT) must be compiled in `debug` or `profile` mode, because `Flutter Driver does not support running in release mode.`. Also, ensure that your Flutter AUT has `enableFlutterDriverExtension()` before `runApp`. Then, please make sure your app imported **[`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html)** package as its devDependencies as well.
-
-This snippet, taken from [example dir](https://github.com/appium-userland/appium-flutter-driver/tree/main/example), is a script written as an appium client with `webdriverio`, and assumes you have `appium` server (with `appium-flutter-driver` installed) running on the same host and default port (`4723`). For more info, see example's [README.md](https://github.com/truongsinh/appium-flutter-driver/tree/main/example/README.md)
-
-### Desired Capabilities for flutter driver only
+### For the Appium Flutter Driver only
 
 | Capability | Description | Example Values |
 | - | - | -|
-| appium:retryBackoffTime | The time wait for socket connection retry for get flutter session (default 3000ms)|500|
-| appium:maxRetryCount    | The count for socket connection retry for get flutter session (default 30)          | 20|
-| appium:observatoryWsUri | The URL to attach to the Dart VM. The appium flutter driver finds the WebSocket URL from the device log by default. You can skip the finding the URL process by specifying this capability. Then, this driver attempt to establish a WebSocket connection against the given WebSocket URL. Note that this capability espects the URL is ready for access by outside an appium session. This flutter driver does not do port-forwarding with this capability. You may need to coordinate the port-forwarding as well. | 'ws://127.0.0.1:60992/aaaaaaaaaaa=/ws' |
+| appium:retryBackoffTime | The time wait for socket connection retry to get flutter session (default 3000ms)|500|
+| appium:maxRetryCount    | The count for socket connection retry for get flutter session (default 10)          | 20|
+| appium:observatoryWsUri | The URL to attach to the Dart VM. The Appium Flutter Driver finds the WebSocket URL from the device log by default. You can skip the finding the URL process by specifying this capability. Then, this driver attempt to establish a WebSocket connection against the given WebSocket URL. Note that this capability expects the URL is ready for access by outside an appium session. This flutter driver does not do port-forwarding with this capability. You may need to coordinate the port-forwarding as well. | 'ws://127.0.0.1:60992/aaaaaaaaaaa=/ws' |
+| appium:isolateId | The isolate id to attach to as the initial attempt. A session can change the isolate with `flutter:setIsolateId` command. The default behavior finds `main` isolate id and attaches it. | `isolates/2978358234363215`, `2978358234363215` |
 | appium:skipPortForward | Whether skip port forwarding from the flutter driver local to the device under test with `observatoryWsUri` capability. It helps you to manage the application under test, the observatory URL and the port forwarding configuration. The default is `true`. | true, false |
+| appium:remoteAdbHost | The IP/hostname of the remote host ADB is running on. This capability only makes sense for Android platform. Providing it will implicitly override the host for the Observatory URL if the latter is determined from device logs. localhost be default | 192.168.1.20
+| appium:adbPort | The port number ADB server is running on. This capability only makes sense for Android platform. 5037 by default | 9999
+| appium:forwardingPort | The port number that will be used to forward the traffic from the device under test to locahost. Only applicable if `skipPortForward` is falsy. Not applicable if the test is executed on iOS Simulator. By default, it is the same as in the provided or autodetected Observatory URL. | 9999
 
-### Context
+### UIA2/XCUITest driver
 
-Appium Flutter Driver allow you to send flutter_driver commands to the Dart VM in `FLUTTER` context, but it does not support native Android/iOS automation. Instead, `NATIVE_APP` context provide you to use UIA2 drier for Android and XCUITest for iOS automation. `WEBVIEW_XXXX` cntext helps WebView testing.
+Please check each driver's documentation
+- https://github.com/appium/appium-uiautomator2-driver
+- https://appium.github.io/appium-xcuitest-driver/latest/capabilities/
 
-Thus, you can automate proper application target by switching its context with `FLUTTER`, `NATIVE_APP` and `WEBVIEW_XXXX`.
+## Context Management
+
+Appium Flutter Driver allows you to send [`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html) commands to the Dart VM in the `FLUTTER` context, but it does not support native Android/iOS since the Dart VM can handle in the Dart VM contents. `NATIVE_APP` context provides you to use the UIA2 driver for Android and the XCUITest driver for iOS automation. `WEBVIEW_XXXX` context helps WebView testing over the UIA2/XCUITest driver that is not available via the flutter_driver.
+
+Thus, you need to switch proper contexts, `FLUTTER`, `NATIVE_APP` or `WEBVIEW_XXXX`, to automate a proper application target.
 
 ### Example
 
 ```js
+# webdriverio
 const wdio = require('webdriverio');
 const assert = require('assert');
 const { byValueKey } = require('appium-flutter-finder');
@@ -69,15 +113,13 @@ const { byValueKey } = require('appium-flutter-finder');
 const osSpecificOps = process.env.APPIUM_OS === 'android' ? {
   'platformName': 'Android',
   'appium:deviceName': 'Pixel 2',
-  // @todo support non-unix style path
-  app: __dirname +  '/../apps/app-free-debug.apk',
+  'appium:app': __dirname +  '/../apps/app-free-debug.apk',
 }: process.env.APPIUM_OS === 'ios' ? {
   'platformName': 'iOS',
   'appium:platformVersion': '12.2',
   'appium:deviceName': 'iPhone X',
   'appium:noReset': true,
   'appium:app': __dirname +  '/../apps/Runner.zip',
-
 } : {};
 
 const opts = {
@@ -117,12 +159,47 @@ const opts = {
 })();
 ```
 
+Please check [example](example) in this repository for more languages.
+
+## Several ways to start an application
+
+You have a couple of methods to start the application under test by establishing the Dart VM connection as below:
+
+1. Start with `app` in the capabilities
+    1. The most standard method. You may need to start a new session with `app` capability. Then, appium-flutter-driver will start the app, and establish a connection with the Dart VM immediately.
+2. Start with `activate_app`: for users who want to start the application under test in the middle of a session
+    1. Start a session without `app` capability
+    2. Install the application under test via `driver.install_app` or `mobile:installApp` command
+    3. Activate the app via `driver.activate_app` or `mobile:activateApp` command
+        - Then, appium-flutter-driver establish a connection with the Dart VM
+3. Launch the app outside the driver: for users who want to manage the application under test by yourselves
+    1. Start a session without `app` capability
+    2. Install the application under test via `driver.install_app` or `mobile:installApp` command etc
+    3. Calls `flutter:connectObservatoryWsUrl` command to keep finding an observatory URL to the Dart VM
+        - `appium:retryBackoffTime` and `appium:maxRetryCount` will control the duration to keep finding an observatory URL to the Dart VM
+    4. (at the same time) Launch the application under test via outside the appium-flutter-driver
+        - e.g. Launch an iOS process via [ios-go](https://github.com/danielpaulus/go-ios), [iproxy](https://github.com/libimobiledevice/libusbmuxd#iproxy) or [tidevice](https://github.com/alibaba/taobao-iphone-device)
+    5. Once `flutter:connectObservatoryWsUrl` identify the observatory URL, the command will establish a connection to the Dart VM
+4. Launch the app with `flutter:launchApp` for iOS and attach to the Dart VM: for users whom application under test do not print the observatory url via regular launch/activate app method
+    1. Start a session without `app` capability
+    2. Install the application under test via `driver.install_app` or `mobile:installApp` command etc
+    3. Calls `flutter:launchApp` command to start an iOS app via instrument service
+        - `driver.execute_script 'flutter:launchApp', 'com.example.bundleId', {arguments: ['arg1'], environment: {ENV1: 'env'}}` is example usage
+        - This launching method is the same as the above 3rd party method, but does the same thing only via the appium flutter driver.
+
 ## Changelog
 
 - [appium-flutter-driver](driver/CHANGELOG.md)
 - [each finder](finder)
 
-## API
+
+## Commands for NATIVE_APP/WEBVIEW context
+
+Please check each driver's documentation
+- https://github.com/appium/appium-uiautomator2-driver
+- https://appium.github.io/appium-xcuitest-driver/latest
+
+## Commands for FLUTTER context
 
 Legend:
 
@@ -149,7 +226,7 @@ Legend:
 ### Commands
 
 The below _WebDriver example_ is by webdriverio.
-`flutter:` prefix commands are [`mobile:` command in appium for Android and iOS](https://appium.io/docs/en/commands/mobile-command/).
+`flutter:` prefix commands are [`mobile:` command in appium for Android and iOS](https://appium.io/docs/en/latest/guides/execute-methods/).
 Please replace them properly with your client.
 
 | Flutter API | Status | WebDriver example (JavaScript, webdriverio) | Scope |
@@ -158,7 +235,6 @@ Please replace them properly with your client.
 | [checkHealth](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/checkHealth.html) | :ok: | `driver.execute('flutter:checkHealth')` | Session |
 | clearTextbox | :ok: | `driver.elementClear(find.byType('TextField'))` | Session |
 | [clearTimeline](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/clearTimeline.html) | :ok: | `driver.execute('flutter:clearTimeline')` | Session |
-| [close](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/close.html) | :ok: | [`driver.deleteSession()`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L55) | Session |
 | [enterText](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/enterText.html) | :ok: | `driver.elementSendKeys(find.byType('TextField'), 'I can enter text')` (no focus required) <br/> `driver.elementClick(find.byType('TextField')); driver.execute('flutter:enterText', 'I can enter text')` (focus required by tap/click first) | Session |
 | [forceGC](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/forceGC.html) | :ok: | `driver.execute('flutter:forceGC')` | Session |
 | [getBottomLeft](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/getBottomLeft.html) | :ok: | `driver.execute('flutter:getBottomLeft', buttonFinder)` | Widget |
@@ -179,14 +255,15 @@ Please replace them properly with your client.
 | [screenshot](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/screenshot.html) | :ok: | `driver.saveScreenshot('a.png')` | Session |
 | [scroll](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scroll.html) | :ok: | `driver.execute('flutter:scroll', find.byType('ListView'), {dx: 50, dy: -100, durationMilliseconds: 200, frequency: 30})` | Widget |
 | [scrollIntoView](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollIntoView.html) | :ok: | `driver.execute('flutter:scrollIntoView', find.byType('TextField'), {alignment: 0.1})` <br/> `driver.execute('flutter:scrollIntoView', find.byType('TextField'), {alignment: 0.1, timeout: 30000})` | Widget |
-| [scrollUntilVisible](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilVisible', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});` | Widget |
-| [scrollUntilTapable](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilTapable', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});` | Widget |
+| [scrollUntilVisible](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilVisible', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});`, `driver.execute('flutter:scrollUntilVisible', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400, waitTimeoutMilliseconds: 20000});` | Widget |
+| [scrollUntilTapable](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/scrollUntilVisible.html) | :ok: | `driver.execute('flutter:scrollUntilTapable', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400});`, `driver.execute('flutter:scrollUntilTapable', find.byType('ListView'), {item:find.byType('TextField'), dxScroll: 90, dyScroll: -400, waitTimeoutMilliseconds: 20000});` | Widget |
 | [setSemantics](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/setSemantics.html) | :x: |  | Session |
 | [setTextEntryEmulation](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/setTextEntryEmulation.html) | :ok: | `driver.execute('flutter:setTextEntryEmulation', false)` | Session |
 | [startTracing](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/startTracing.html) | :x: |  | Session |
 | [stopTracingAndDownloadTimeline](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/stopTracingAndDownloadTimeline.html) | :x: |  | Session |
 | [tap](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/tap.html) | :ok: | [`driver.elementClick(buttonFinder)`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L46) | Widget |
 | [tap](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/tap.html) | :ok: | [`driver.touchAction({action: 'tap', element: {elementId: buttonFinder}})`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L47) | Widget |
+| [tap](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/tap.html) | :ok: | [`driver.execute('flutter:clickElement', buttonFinder, {timeout:5000})`](https://github.com/truongsinh/appium-flutter-driver/blob/5df7386b59bb99008cb4cff262552c7259bb2af2/example/src/index.js#L47) | Widget |
 | [traceAction](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/traceAction.html) | :x: |  | Session |
 | [waitFor](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitFor.html) | :ok: | `driver.execute('flutter:waitFor', buttonFinder, 100)` | Widget |
 | [waitForAbsent](https://api.flutter.dev/flutter/flutter_driver/FlutterDriver/waitForAbsent.html) | :ok: | `driver.execute('flutter:waitForAbsent', buttonFinder)` | Widget |
@@ -195,20 +272,16 @@ Please replace them properly with your client.
 | - | :ok: | `driver.execute('flutter:getVMInfo')` | System |
 | - | :ok: | `driver.execute('flutter:setIsolateId', 'isolates/2978358234363215')` | System |
 | - | :ok: | `driver.execute('flutter:getIsolate', 'isolates/2978358234363215')` or `driver.execute('flutter:getIsolate')` | System |
-| - | :ok: | `setContext` | Appium |
-| - | :ok: | `getCurrentContext` | Appium |
-| - | :ok: | `getContexts` | Appium |
 | :question: | :ok: | `driver.execute('flutter:longTap', find.byValueKey('increment'), {durationMilliseconds: 10000, frequency: 30})` | Widget |
 | :question: | :ok: | `driver.execute('flutter:waitForFirstFrame')` | Widget |
+| - | :ok: | (Ruby) `driver.execute_script 'flutter:connectObservatoryWsUrl'` | Flutter Driver |
+| - | :ok: | (Ruby) `driver.execute_script 'flutter:launchApp', 'bundleId', {arguments: ['arg1'], environment: {ENV1: 'env'}}` | Flutter Driver |
 
-### Note
-- Flutter context does not support page source
-    - Please use `getRenderTree` command instead
-- You can send appium-xcuitest-driver/appium-uiautomator2-driver commands in `NATIVE_APP` context
-- `scrollUntilVisible` command : An expectation for checking that an element, known to be present on the widget tree, is visible. Using waitFor to wait element
-- `scrollUntilTapable` command : An expectation for checking an element is visible and enabled such that you can click it. Using waitTapable to wait element
+> **NOTE**
+> `flutter:launchApp` launches an app via instrument service. `mobile:activateApp` and `driver.activate_app` are via XCTest API. They are a bit different.
 
-## Change the flutter engine attache to
+### `isolate` handling
+#### Change the flutter engine attache to
 
 1. Get available isolate ids
     - `id` key in the value of `isolates` by `flutter:getVMInfo`
@@ -221,7 +294,7 @@ info = driver.execute_script 'flutter:getVMInfo'
 driver.execute_script 'flutter:setIsolateId', info['isolates'][0]['id']
 ```
 
-## Check current isolate, or a particular isolate
+#### Check current isolate, or a particular isolate
 
 1. Get available isolates
     - `driver.execute('flutter:getVMInfo').isolates` (JS)
@@ -229,15 +302,35 @@ driver.execute_script 'flutter:setIsolateId', info['isolates'][0]['id']
     - Current isolate: `driver.execute('flutter:getIsolate')` (JS)
     - Particular isolate: `driver.execute('flutter:getIsolate', 'isolates/2978358234363215')` (JS)
 
-## TODO
-- [ ] CI (unit test / integration test with demo app)
-- [ ] CD (automatic publish to npm)
+## Commands across contexts
+
+These Appium commands can work across context
+
+- `deleteSession`
+- `setContext`
+- `getCurrentContext`
+- `getContexts`
+- `activateApp('appId')`/`mobile:activateApp`
+    - `mobile:activateApp` has `skipAttachObservatoryUrl` key to not try to attach to an observatory url. e.g. `driver.execute_script 'mobile:activateApp', {skipAttachObservatoryUrl: true, appId: 'com.android.chrome'}`
+- `terminateApp('appId')`/`mobile:terminateApp`
+- `installApp(appPath, options)`
+- `getClipboard`
+- `setClipboard`
+
+## Troubleshooting
+
+- input texts https://github.com/appium/appium-flutter-driver/issues/417
+- Looks hanging in `click` https://github.com/appium/appium-flutter-driver/issues/181#issuecomment-1323684510
+    - `flutter:setFrameSync` may help
+
+## TODO?
+
 - [ ] switching context between Flutter and [AndroidView](https://api.flutter.dev/flutter/widgets/AndroidView-class.html)
 - [ ] switching context between Flutter and [UiKitView](https://api.flutter.dev/flutter/widgets/UiKitView-class.html)
-- [ ] Flutter-version-aware API
-- [ ] Error handling
-
-## Test Status
+- [ ] Web: `FLUTTER_WEB` context?
+- [ ] macOS: with https://github.com/appium/appium-mac2-driver
+- [ ] Windws?
+- [ ] Linux?
 
 ## Release appium-flutter-driver
 
@@ -253,5 +346,9 @@ $ npm publish
 ```
 
 ### Java implementation
-````
+```
 https://github.com/ashwithpoojary98/javaflutterfinder
+```
+```
+https://github.com/5v1988/appium-flutter-client
+```

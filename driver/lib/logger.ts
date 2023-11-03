@@ -1,4 +1,4 @@
-// @ts-ignore
 import { logger } from '@appium/support';
+import { AppiumLogger } from '@appium/types';
 
-export const log = logger.getLogger(`FlutterDriver`);
+export const log: AppiumLogger = logger.getLogger(`FlutterDriver`);

@@ -1,4 +1,3 @@
-// @ts-ignore
 import { utilities } from 'appium-ios-device';
 import { timing } from '@appium/support';
 import XCUITestDriver from 'appium-xcuitest-driver';
@@ -8,30 +7,42 @@ import net from 'net';
 import { checkPortStatus } from 'portscanner';
 import { log } from '../logger';
 import { connectSocket, processLogToGetobservatory } from './observatory';
+import { InitialOpts } from '@appium/types';
 
 const LOCALHOST = `127.0.0.1`;
 const PORT_CLOSE_TIMEOUT = 15 * 1000; // 15 seconds
 export const DRIVER_NAME = `XCUITest`;
+type IsolateSocket = import('./isolate_socket').IsolateSocket;
 
-const setupNewIOSDriver = async (...args) => {
-  const iosArgs = {
-    javascriptEnabled: true,
-  };
 
-  const iosdriver = new XCUITestDriver(iosArgs);
+const setupNewIOSDriver = async (...args: any[]): Promise<XCUITestDriver> => {
+  const iosdriver = new XCUITestDriver({} as InitialOpts);
   await iosdriver.createSession(...args);
 
   return iosdriver;
 };
 
-export const startIOSSession = async (caps, ...args) => {
+export const startIOSSession = async (
+  caps: Record<string, any>, ...args: any[]
+): Promise<[XCUITestDriver, IsolateSocket|null]> => {
   log.info(`Starting an IOS proxy session`);
   const iosdriver = await setupNewIOSDriver(...args);
+
+  // the session starts without any apps
+  if (caps.app === undefined && caps.bundleId === undefined) {
+    return [iosdriver, null];
+  }
+
   return Promise.all([
     iosdriver,
     connectSocket(getObservatoryWsUri, iosdriver, caps),
   ]);
 };
+
+export const connectIOSSession = async (
+  iosdriver: XCUITestDriver, caps: Record<string, any>
+): Promise<IsolateSocket> =>
+  await connectSocket(getObservatoryWsUri, iosdriver, caps);
 
 const waitForPortIsAvailable = async (port) => {
   let isPortBusy = (await checkPortStatus(port, LOCALHOST)) === `open`;
@@ -67,7 +78,9 @@ const waitForPortIsAvailable = async (port) => {
   }
 };
 
-export const getObservatoryWsUri = async (proxydriver, caps) => {
+export const getObservatoryWsUri = async (
+  proxydriver: XCUITestDriver, caps: Record<string, any>
+): Promise<string> => {
   let urlObject;
   if (caps.observatoryWsUri) {
     urlObject = new URL(caps.observatoryWsUri);
@@ -77,24 +90,25 @@ export const getObservatoryWsUri = async (proxydriver, caps) => {
     if (caps.skipPortForward === undefined || caps.skipPortForward) {
       return urlObject.toJSON();
     }
-
   } else {
     urlObject = processLogToGetobservatory(proxydriver.logs.syslog.logs);
   }
-
-  const { udid } = proxydriver.opts;
-
   if (!proxydriver.isRealDevice()) {
     log.info(`Running on iOS simulator`);
     return urlObject.toJSON();
   }
 
+  const remotePort = urlObject.port;
+  const localPort = caps.forwardingPort ?? remotePort;
+  urlObject.port = localPort;
+
   log.info(`Running on iOS real device`);
-  await waitForPortIsAvailable(urlObject.port);
+  const { udid } = proxydriver.opts;
+  await waitForPortIsAvailable(localPort);
   const localServer = net.createServer(async (localSocket) => {
     let remoteSocket;
     try {
-      remoteSocket = await utilities.connectPort(udid, urlObject.port);
+      remoteSocket = await utilities.connectPort(udid, remotePort);
     } catch (e) {
       localSocket.destroy();
       return;
@@ -120,14 +134,14 @@ export const getObservatoryWsUri = async (proxydriver, caps) => {
     localServer.once(`listening`, resolve);
     localServer.once(`error`, reject);
   });
-  localServer.listen(urlObject.port);
+  localServer.listen(localPort);
   try {
     await listeningPromise;
   } catch (e) {
-    log.errorAndThrow(`Failed to listen the port ${urlObject.port}: ${e}`);
+    throw new Error(`Cannot listen on the local port ${localPort}. Original error: ${e.message}`);
   }
 
-  log.info(`Port forwarding to: ${urlObject.port}`);
+  log.info(`Forwarding the remote port ${remotePort} to the local port ${localPort}`);
 
   process.on(`beforeExit`, () => {
     localServer.close();
