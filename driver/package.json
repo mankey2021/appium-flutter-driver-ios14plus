@@ -6,7 +6,7 @@
     "flutter"
   ],
   "version": "2.2.0",
-  "main": "./build/driver/lib/driver.js",
+  "main": "./build/lib/driver.js",
   "appium": {
     "driverName": "flutter-ios14plus",
     "automationName": "Flutter-iOS14Plus",
@@ -31,13 +31,14 @@
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "prepublishOnly": "cp ../README.md ../LICENSE ./",
-    "prepare": "npm run clean && npm run build",
+    "prepare": "npm run clean && npm run build && npm run copyZip",
     "test": "echo no test",
-    "compile": "tsc && mkdir ./build/driver/lib/est-code && cp ./lib/est-code/appium-xcuitest-driver.zip ./build/driver/lib/est-code/appium-xcuitest-driver.zip",
+    "copyZip": "mkdir ./build/lib/est-code && cp ./lib/est-code/appium-xcuitest-driver.zip ./build/lib/est-code/appium-xcuitest-driver.zip",
+    "compile": "tsc && mkdir ./build/lib/est-code && cp ./lib/est-code/appium-xcuitest-driver.zip ./build/lib/est-code/appium-xcuitest-driver.zip",
     "clean": "rm -rf build",
     "lint": "tslint 'lib/**/*.ts'",
     "clean-dependency": "rm -rf node_modules && rm -f package-lock.json && npm install",
-    "postinstall": "unzip -o ./build/driver/lib/est-code/appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
+    "postinstall": "unzip -o ./build/lib/est-code/appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
   },
   "peerDependencies": {
     "appium": "^2.0.0"
