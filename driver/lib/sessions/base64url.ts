@@ -3,10 +3,12 @@ import { util } from '@appium/support';
 
 export const decode = (input: string | {ELEMENT: string}): string => {
   let base64String = ``;
+  let baseVar;
   if (_.isString(input)) {
     base64String = input;
   } else if (_.has(input, util.W3C_WEB_ELEMENT_IDENTIFIER)) {
-    base64String = input[util.W3C_WEB_ELEMENT_IDENTIFIER];
+    baseVar = input[util.W3C_WEB_ELEMENT_IDENTIFIER];
+    base64String = baseVar;
   } else if (_.has(input, 'ELEMENT')) {
     base64String = input.ELEMENT;
   } else {
