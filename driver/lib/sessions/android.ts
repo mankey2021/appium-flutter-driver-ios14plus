@@ -1,22 +1,21 @@
 import AndroidUiautomator2Driver from 'appium-uiautomator2-driver';
 import { log } from '../logger';
-import { connectSocket, processLogToGetobservatory } from './observatory';
-import { InitialOpts } from '@appium/types';
-
-export const DRIVER_NAME = `UIAutomator2`;
-type IsolateSocket = import('./isolate_socket').IsolateSocket;
-
+import { connectSocket, fetchObservatoryUrl } from './observatory';
+import type { InitialOpts } from '@appium/types';
+import type { IsolateSocket } from './isolate_socket';
+import { FlutterDriver } from '../driver';
 
 const setupNewAndroidDriver = async (...args: any[]): Promise<AndroidUiautomator2Driver> => {
   const androiddriver = new AndroidUiautomator2Driver({} as InitialOpts);
-  // @ts-ignore
+  //@ts-ignore Args are ok
   await androiddriver.createSession(...args);
-
   return androiddriver;
 };
 
 export const startAndroidSession = async (
-  caps: Record<string, any>, ...args: any[]
+  flutterDriver: FlutterDriver,
+  caps: Record<string, any>,
+  ...args: any[]
 ): Promise<[AndroidUiautomator2Driver, IsolateSocket|null]> => {
   log.info(`Starting an Android proxy session`);
   const androiddriver = await setupNewAndroidDriver(...args);
@@ -28,16 +27,19 @@ export const startAndroidSession = async (
 
   return [
     androiddriver,
-    await connectSocket(getObservatoryWsUri, androiddriver, caps),
+    await connectSocket(getObservatoryWsUri, flutterDriver, androiddriver, caps),
   ];
 };
 
 export const connectAndroidSession = async (
-  androiddriver: AndroidUiautomator2Driver, caps: Record<string, any>
+  flutterDriver: FlutterDriver, androiddriver: AndroidUiautomator2Driver, caps: Record<string, any>
 ): Promise<IsolateSocket> =>
-  await connectSocket(getObservatoryWsUri, androiddriver, caps);
+  await connectSocket(getObservatoryWsUri, flutterDriver, androiddriver, caps);
 
-export const getObservatoryWsUri = async (proxydriver: AndroidUiautomator2Driver, caps): Promise<string> => {
+export const getObservatoryWsUri = async (
+  flutterDriver: FlutterDriver,
+  proxydriver: AndroidUiautomator2Driver,
+  caps): Promise<string> => {
   let urlObject: URL;
   if (caps.observatoryWsUri) {
     urlObject = new URL(caps.observatoryWsUri);
@@ -48,12 +50,12 @@ export const getObservatoryWsUri = async (proxydriver: AndroidUiautomator2Driver
       return urlObject.toJSON();
     }
   } else {
-    urlObject = processLogToGetobservatory(proxydriver.adb.logcat!.logs as [{message: string}]);
+    urlObject = fetchObservatoryUrl(proxydriver.adb.logcat!.logs as [{message: string}]);
   }
   const remotePort = urlObject.port;
-  const localPort = caps.forwardingPort ?? remotePort;
-  urlObject.port = localPort;
-  await proxydriver.adb.forwardPort(localPort, remotePort);
+  flutterDriver.portForwardLocalPort = caps.forwardingPort ?? remotePort;
+  urlObject.port = flutterDriver.portForwardLocalPort!;
+  await proxydriver.adb.forwardPort(flutterDriver.portForwardLocalPort!, remotePort);
   if (!caps.observatoryWsUri && proxydriver.adb.adbHost) {
     urlObject.host = proxydriver.adb.adbHost;
   }

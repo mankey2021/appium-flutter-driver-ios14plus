@@ -1,8 +1,41 @@
 # Changelog
 
+## 2.6.0
+- Update Appium XCUITest driver dependency to 7.11.1
+- `doctor` command can skip Android or iOS with environment variables
+
+## 2.5.1
+- fix: scroll until visible + scroll until tapable [#671](https://github.com/appium/appium-flutter-driver/pull/671)
+
+## 2.5.0
+- Update Appium XCUITest driver dependency to 6.0.1
+
+## 2.4.2
+- Removed unused dependencies
+
+## 2.4.1
+- Removed unused dependencies
+
+## 2.4.0
+- Update Appium UIAutomation2 driver dependency to 2.42.1
+- Update Appium XCUITest driver dependency to 5.14.0
+- Add `doctor` command
+
+## 2.3.0
+- Update Appium UIAutomation2 driver dependency to 2.37.0
+- Update Appium XCUITest driver dependency to 5.12.1
+
+## 2.2.3
+- fix leftover portforward
+
+## 2.2.2
+- fix: scrollUntilVisible and scrollUntilTapable https://github.com/appium/appium-flutter-driver/pull/622
+
+## 2.2.1
+- fix: typescript syntaxes
 
 ## 2.2.0
-- Update Appium UIAutomation2 driver dependency to 7.0.2
+- Update Appium UIAutomation2 driver dependency to 2.34.1
 - Update Appium XCUITest driver dependency to 5.7.0
 
 ## 2.1.0

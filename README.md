@@ -24,8 +24,11 @@ Under the hood, Appium Flutter Driver uses the [Dart VM Service Protocol](https:
           - https://github.com/appium/appium-uiautomator2-driver
           - https://appium.github.io/appium-xcuitest-driver/latest
     - `WEBVIEW` context manages the WebView contents over Appium UiAutomator2/XCUITest driver
-- Appium UiAutomator2/XCUITest drivers must be sufficient to achieve automation if the application under test had `semanticLabel` properly. Then, the accessibility mechanism in each OS can expose elements for Appium through OS's accessibility features
+- (**Recommended** if possible) Appium UiAutomator2/XCUITest drivers must be sufficient to achieve automation if the application under test had `semanticLabel` properly. Then, the accessibility mechanism in each OS can expose elements for Appium through OS's accessibility features. Then, this driver is not necessary.
     - For example, [Key](https://api.flutter.dev/flutter/foundation/Key-class.html) does not work in the Appium UiAutomator2/XCUITest drivers, but can work in the Appium Flutter Driver
+    - Flutter 3.19 may have [`identifier` for `SemanticsProperties`](https://api.flutter.dev/flutter/semantics/SemanticsProperties/identifier.html) (introduced by https://github.com/flutter/flutter/pull/138331). It sets `resource-id` and `accessibilityIdentifier` for Android and iOS, then UiAutomator2/XCUITest drivers also can handle `Key` without this driver
+        - `"appium:disableIdLocatorAutocompletion": true` would be necessary to make `resource-id` idea work without any package name prefix like Android compose.
+        - e.g. https://github.com/flutter/flutter/issues/17988#issuecomment-1867097631
 
 ## Installation
 
@@ -60,6 +63,22 @@ This snippet, taken from [example directory](example), is a script written as an
 > This means this driver depends on [`flutter_driver`](https://api.flutter.dev/flutter/flutter_driver/flutter_driver-library.html).
 
 Each client needs [each finder](finder) module to handle [Finders](#Finders). Appium Flutter Driver communicates with the Dart VM directory in the `FLUTTER` context.
+
+> **Note**
+> [Expand deprecation policy to package:flutter_driver](https://github.com/flutter/flutter/issues/139249) potentially means this driver will no longer work by the future Flutter updates. They do not cover all cases that can cover the flutter_driver, such as permission dialog handling, thus we're not sure when the time comes though.
+
+### Doctor
+Since driver version 2.4.0 you can automate the validation for the most of the above requirements as well as various optional ones needed by driver extensions by running the `appium driver doctor flutter` server command.
+The check runs for Android for UIAutomator2 driver and iOS for XCUITest driver.
+
+`SKIP_ANDROID` or `SKIP_IOS` environment variable helps to skip these checks.
+
+```
+# skip Android check
+SKIP_ANDROID=1 appium driver doctor flutter
+# skip iOS check
+SKIP_IOS=1 appium driver doctor flutter
+```
 
 ### Note
 - Flutter context does not support page source
@@ -186,6 +205,8 @@ You have a couple of methods to start the application under test by establishing
     3. Calls `flutter:launchApp` command to start an iOS app via instrument service
         - `driver.execute_script 'flutter:launchApp', 'com.example.bundleId', {arguments: ['arg1'], environment: {ENV1: 'env'}}` is example usage
         - This launching method is the same as the above 3rd party method, but does the same thing only via the appium flutter driver.
+
+Please make sure the target app process stops before starting the target app with the above.
 
 ## Changelog
 
@@ -338,6 +359,7 @@ These Appium commands can work across context
 $ cd driver
 $ sh release.sh
 $ npm version <major|minor|patch>
+# update changelog
 $ git commit -am 'chore: bump version'
 $ git tag <version number> # e.g. git tag v0.0.32
 $ git push origin v0.0.32

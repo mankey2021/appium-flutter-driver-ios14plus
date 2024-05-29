@@ -1,10 +1,13 @@
 import { URL } from 'url';
 import _ from 'lodash';
-import { FlutterDriver } from '../driver';
+import type { FlutterDriver } from '../driver';
 import { log } from '../logger';
 import { IsolateSocket } from './isolate_socket';
 import { decode } from './base64url';
 import B from 'bluebird';
+import type XCUITestDriver from 'appium-xcuitest-driver';
+import type AndroidUiautomator2Driver from 'appium-uiautomator2-driver';
+import { PLATFORM } from '../platform';
 
 const truncateLength = 500;
 // https://github.com/flutter/flutter/blob/f90b019c68edf4541a4c8273865a2b40c2c01eb3/dev/devicelab/lib/framework/runner.dart#L183
@@ -17,11 +20,12 @@ const OBSERVATORY_URL_PATTERN = new RegExp(
   `The Dart VM service is listening on )` +
   `((http|//)[a-zA-Z0-9:/=_\\-.\\[\\]]+)`,
 );
-type AnyDriver = import('appium-xcuitest-driver').XCUITestDriver | import('appium-uiautomator2-driver').AndroidUiautomator2Driver;
+type AnyDriver = XCUITestDriver | AndroidUiautomator2Driver;
 
 // SOCKETS
 export const connectSocket = async (
-  getObservatoryWsUri: (driver: AnyDriver, caps: any) => Promise<string>,
+  getObservatoryWsUri: (flutterDriver: FlutterDriver, driver: AnyDriver, caps: any) => Promise<string>,
+  flutterDriver: FlutterDriver,
   driver: AnyDriver,
   caps: Record<string, any>
 ): Promise<IsolateSocket> => {
@@ -48,11 +52,11 @@ export const connectSocket = async (
 
     // Every attempt gets the latest observatory url
     try {
-      dartObservatoryURL = await getObservatoryWsUri(driver, caps);
+      dartObservatoryURL = await getObservatoryWsUri(flutterDriver, driver, caps);
       urlFetchError = undefined;
     } catch (e) {
       urlFetchError = e;
-      log.debug(e.message);
+      log.debug(`Got an error while finding an observatory url. Original error: ${e.message}`);
     }
 
     if (!urlFetchError) {
@@ -68,7 +72,7 @@ export const connectSocket = async (
 
         // Add an 'error' event handler for the client socket
         const onErrorListener = (ex: Error) => {
-          log.error(JSON.stringify(ex));
+          log.error(`Connection to ${dartObservatoryURL} got an error: ${ex.message}`);
           removeListenerAndResolve(null);
         };
         socket.on(`error`, onErrorListener);
@@ -150,6 +154,19 @@ export const connectSocket = async (
         return connectedSocket;
       }
     }
+
+    // re-create the port forward
+    switch (_.toLower(caps.platformName)) {
+      case PLATFORM.IOS:
+        flutterDriver.localServer?.close();
+        break;
+      case PLATFORM.ANDROID:
+        if (flutterDriver.portForwardLocalPort) {
+          await driver.adb.removePortForward(flutterDriver.portForwardLocalPort);
+        }
+        break;
+    }
+
     retryCount++;
   }
   throw new Error(
@@ -201,7 +218,7 @@ export const executeElementCommand = async function(
   return data.response;
 };
 
-export const processLogToGetobservatory = (deviceLogs: [{ message: string }]): URL => {
+export const fetchObservatoryUrl = (deviceLogs: [{ message: string }]): URL => {
   let dartObservatoryURL: URL|undefined;
   for (const line of deviceLogs.map((e) => e.message).reverse()) {
     const match = line.match(OBSERVATORY_URL_PATTERN);

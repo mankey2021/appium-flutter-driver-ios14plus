@@ -5,7 +5,7 @@
     "appium",
     "flutter"
   ],
-  "version": "2.2.0-2",
+  "version": "2.6.0",
   "main": "./build/lib/driver.js",
   "appium": {
     "driverName": "flutter-ios14plus",
@@ -14,8 +14,14 @@
       "iOS",
       "Android"
     ],
-    "mainClass": "FlutterDriver"
+    "mainClass": "FlutterDriver",
+    "doctor": {
+      "checks": [
+        "./build/lib/doctor/checks.js"
+      ]
+    }
   },
+  "bin": {},
   "directories": {
     "lib": "lib"
   },
@@ -41,14 +47,13 @@
     "postinstall": "unzip -o ./build/lib/est-code/appium-xcuitest-driver.zip -d ./node_modules/appium-xcuitest-driver/build/lib"
   },
   "peerDependencies": {
-    "appium": "^2.0.0"
+    "appium": "^2.4.1"
   },
   "devDependencies": {
     "@appium/eslint-config-appium": "^8.0.4",
-    "@appium/eslint-config-appium-ts": "^0.3.1",
-    "@appium/schema": "^0.4.1",
-    "@appium/tsconfig": "^0.3.0",
-    "@appium/types": "^0.14.1",
+    "@appium/eslint-config-appium-ts": "^0.x",
+    "@appium/tsconfig": "^0.x",
+    "@appium/types": "^0.x",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "eslint": "^8.46.0",
@@ -57,22 +62,18 @@
     "eslint-plugin-import": "^2.28.0",
     "eslint-plugin-mocha": "^10.1.0",
     "eslint-plugin-promise": "^6.1.1",
-    "json-schema": "^0.4.0",
-    "semantic-release": "^22.0.5",
-    "type-fest": "^4.0.0",
+    "semantic-release": "^23.0.0",
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "typescript": "~5.4"
   },
   "dependencies": {
-    "appium-adb": "^11.0.1",
-    "appium-android-driver": "^7.0.2",
     "appium-ios-device": "^2.4.1",
-    "appium-uiautomator2-driver": "^2.29.4",
-    "appium-xcuitest-driver": "5.7.0",
-    "asyncbox": "^2.3.1",
+    "appium-android-driver": "^9.0.3",
+    "appium-uiautomator2-driver": "^3.0.0",
+    "appium-xcuitest-driver": "^7.11.1",
     "bluebird": "^3.1.1",
     "lodash": "^4.0.0",
-    "portscanner": "2.2.0",
+    "portscanner": "^2.2.0",
     "rpc-websockets": "^7.4.16"
   }
 }
