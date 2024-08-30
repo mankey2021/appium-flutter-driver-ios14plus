@@ -10,21 +10,31 @@ class ExampleTests < Minitest::Test
     caps: {
       platformName: 'iOS',
       automationName: 'flutter',
-      platformVersion: '15.5',
-      deviceName: 'iPhone 13',
-      app: "#{Dir.pwd}/../sample2/iOSFullScreen.zip"
+      platformVersion: '17.4',
+      deviceName: 'iPhone 15 Plus',
+      app: "#{Dir.pwd}/../sample2/iOSFullScreen.zip",
+      wdaLaunchTimeout: 600_000,
+      maxRetryCount: 20,
+      retryBackoffTime: 5000,
+
     },
     appium_lib: {
       export_session: true,
       wait_timeout: 20,
       wait_interval: 1
     }
-  }.freeze
+  }
+
+  def setup
+    @core = ::Appium::Core.for(CAPS)
+    @driver = @core.start_driver server_url: 'http://localhost:4723'
+  end
+
+  def teardown
+    @driver&.quit
+  end
 
   def test_run_example_ios
-    @core = ::Appium::Core.for(CAPS)
-    @driver = @core.start_driver
-
     @driver.context = 'NATIVE_APP'
 
     element = @driver.find_element :accessibility_id, 'launchFlutter'
@@ -51,5 +61,13 @@ class ExampleTests < Minitest::Test
 
     element = @driver.wait_until { |d| d.find_element :accessibility_id, 'currentCounter' }
     assert_equal 'Current counter: 2', element.text
+
+    @driver.context = 'FLUTTER'
+    @driver.terminate_app 'samples.flutter.example.IOSFullScreen'
+    @driver.activate_app 'samples.flutter.example.IOSFullScreen'
+
+    text_finder = by_text 'Tap me!'
+    element = ::Appium::Flutter::Element.new(@driver, finder: text_finder)
+    assert_equal 'Tap me!', element.text
   end
 end

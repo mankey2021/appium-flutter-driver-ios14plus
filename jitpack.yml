@@ -1,0 +1,6 @@
+jdk:
+  - openjdk11
+install:
+  - cd finder/kotlin
+  - ./gradlew publishToMavenLocal
+
